@@ -2,12 +2,37 @@
 
 End-to-end setup for the Nav2 (MPPI) + lidar obstacle-avoidance stack, covering
 both the **simulation** path (Gazebo + ArduPilot SITL) and the **hardware** path
-(LightWare SF45/B lidar + real flight controller). Target: a clean **Ubuntu 22.04**
-machine.
+(LightWare SF45/B lidar + real flight controller).
 
 Legend:  [COMMON] needed for everything · [SIM] simulation only · [HW] hardware only
 
 Run the stages in order. Lines starting with `sudo` need admin rights.
+
+--------------------------------------------------------------------------------
+## Platforms
+--------------------------------------------------------------------------------
+- **Dev / simulation machine:** x86_64, Ubuntu 22.04 — run all stages.
+- **Onboard computer (OBC):** **NVIDIA Jetson Orin NX 16 GB**, JetPack 6.x
+  (Ubuntu 22.04, **arm64/aarch64**). **No Gazebo, no ArduPilot SITL needed** —
+  run only stages **0, 1, 2, 3, 8, 9, 10** and **skip 4–7**.
+
+All apt commands below use `$(dpkg --print-architecture)`, so they resolve to
+`arm64` on the Jetson automatically — the same lines work on both platforms.
+
+### Jetson Orin NX quick notes
+- JetPack 6 is Ubuntu 22.04 → ROS 2 **Humble** installs from apt on arm64 as normal.
+- The stack needs **no CUDA / torch** — the live nodes are pure rclpy. Nothing here
+  depends on the Jetson GPU.
+- Headless OBC: install **`ros-humble-ros-base`** instead of `ros-humble-desktop`
+  (stage 1) to save space; run RViz on your ground station, not the Jetson.
+- Set max performance before flying:
+  ```bash
+  sudo nvpmodel -m 0      # MAXN power mode
+  sudo jetson_clocks      # lock clocks high (helps MPPI/costmap real-time)
+  ```
+- Real flight controller wiring (instead of SITL): connect the FCU by USB
+  (`/dev/ttyACM*`) or the Jetson UART (`/dev/ttyTHS1`) and pass it as `fcu_url`
+  (see stage 12). Add yourself to `dialout` (stage 8) for both the lidar and FCU.
 
 --------------------------------------------------------------------------------
 ## 0. Prerequisites [COMMON]
@@ -39,6 +64,8 @@ http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME
 
 sudo apt update
 sudo apt install -y ros-humble-desktop ros-dev-tools
+# Jetson / headless OBC: use the lean base instead (run RViz on the ground station):
+#   sudo apt install -y ros-humble-ros-base ros-dev-tools
 ```
 
 Source ROS in every shell:
@@ -247,18 +274,23 @@ ros2 launch src/obstacle_avoidance/launch/nav2_mppi.launch.py
 rviz2 -d src/obstacle_avoidance/config/nav2_drone.rviz
 ```
 
-### Hardware path (real SF45/B, SITL or real FCU)
+### Hardware path (real SF45/B — Jetson OBC + real FCU)
 ```bash
-# terminal 1: flight controller — SITL:
-sim_vehicle.py -v ArduCopter --console --map
-#              — or a real FCU over UDP/serial (needs a GPS/position source!)
-# terminal 2: infra (real lidar + mavros + tf, wall-time, NO gz/clock)
-ros2 launch src/obstacle_avoidance_hw/launch/bringup_hw.launch.py
-# after a position fix + takeoff, terminal 3: Nav2
+# infra (real lidar + mavros + tf, wall-time, NO gz/clock).
+# Real FCU: pass fcu_url for the serial link. Examples:
+#   USB autopilot:   fcu_url:=/dev/ttyACM1:921600
+#   Jetson UART:     fcu_url:=/dev/ttyTHS1:921600
+ros2 launch src/obstacle_avoidance_hw/launch/bringup_hw.launch.py \
+    fcu_url:=/dev/ttyACM1:921600 lidar_port:=/dev/ttyACM0
+
+# after a position fix + takeoff (GPS/flow/VIO required):
 ros2 launch src/obstacle_avoidance_hw/launch/nav2_hw.launch.py
-# terminal 4: RViz
+
+# RViz — run on the GROUND STATION (same ROS_DOMAIN_ID), not the Jetson:
 rviz2 -d src/obstacle_avoidance_hw/config/nav2_drone.rviz
 ```
+On the bench with SITL instead of a real FCU, omit `fcu_url` (defaults to
+`udp://127.0.0.1:14550@`) and run `sim_vehicle.py -v ArduCopter --console --map`.
 
 ⚠️ **Hardware needs a position estimate.** Without GPS (or optical-flow/VIO/mocap),
 `/mavros/local_position/pose` never publishes, so `map->base_link` is absent and
