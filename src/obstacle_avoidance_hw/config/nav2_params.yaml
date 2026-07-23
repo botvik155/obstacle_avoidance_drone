@@ -51,10 +51,10 @@ controller_server:
       vy_std: 0.2
       wz_std: 0.4
 
-      vx_max: 1.5
+      vx_max: 1.0
       vx_min: -0.5
-      vy_max: 1.5
-      vy_min: -1.5
+      vy_max: 1.0
+      vy_min: -1.0
 
       wz_max: 1.5
       wz_min: -1.5
