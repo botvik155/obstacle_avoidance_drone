@@ -1,0 +1,30 @@
+# ---- ROS 2 / colcon build artifacts ----
+build/
+install/
+log/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
+# ---- Third-party driver (clone separately, see INSTALL.md) ----
+src/lightwarelidar2/
+
+# ---- Flight logs / telemetry / params (large, machine-specific) ----
+logs/
+*.tlog
+*.tlog.raw
+*.bin
+*.parm
+*.BIN
+
+# ---- Generated / misc ----
+*.pdf
+*.png
+*.gv
+terrain/
+eeprom.bin
+mission*.txt
+*_mission.csv
