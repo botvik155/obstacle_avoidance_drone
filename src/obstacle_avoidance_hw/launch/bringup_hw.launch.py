@@ -35,7 +35,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.descriptions import ParameterValue
 
-PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PKG_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 TF_PY = os.path.join(PKG_DIR, 'obstacle_avoidance_hw', 'tf_publisher.py')
 
 
@@ -50,14 +50,26 @@ def generate_launch_description():
     mavros_launch = os.path.join(
         get_package_share_directory('mavros'), 'launch', 'apm.launch')
 
+    # Run the TF bridge from source if the .py is reachable (dev / run-from-source);
+    # otherwise use the installed console-script (colcon-built package on the OBC).
+    if os.path.exists(TF_PY):
+        tf_node = ExecuteProcess(
+            cmd=['python3', TF_PY, '--ros-args', '-p', 'lidar_frame:=laser'],
+            output='screen')
+    else:
+        tf_node = Node(
+            package='obstacle_avoidance_hw', executable='mavros_tf_bridge',
+            name='mavros_tf_bridge', output='screen',
+            parameters=[{'lidar_frame': 'laser'}])
+
     return LaunchDescription([
         DeclareLaunchArgument('fcu_url', default_value='udp://127.0.0.1:14550@'),
         DeclareLaunchArgument('lidar_port', default_value='/dev/ttyACM0'),
         DeclareLaunchArgument('lidar_baud', default_value='115200'),
         DeclareLaunchArgument('lidar_frame', default_value='laser'),
         # SF45/B scan sector. Widen for more coverage (sensor supports ~+/-170).
-        DeclareLaunchArgument('low_angle', default_value='-160'),
-        DeclareLaunchArgument('high_angle', default_value='160'),
+        DeclareLaunchArgument('low_angle', default_value='-100'),
+        DeclareLaunchArgument('high_angle', default_value='100'),
 
         # ---- Real SF45/B lidar -> /lidar/scan ----
         Node(
@@ -81,10 +93,6 @@ def generate_launch_description():
         ),
 
         # ---- mavros pose -> map->base_link TF (+ static base_link->laser) ----
-        # Wall time (no use_sim_time). lidar_frame must match the sf45b frame_id
-        # so the static base_link->laser transform names the right child frame.
-        ExecuteProcess(
-            cmd=['python3', TF_PY, '--ros-args', '-p', 'lidar_frame:=laser'],
-            output='screen',
-        ),
+        # Wall time (no use_sim_time). lidar_frame must match the sf45b frame_id.
+        tf_node,
     ])

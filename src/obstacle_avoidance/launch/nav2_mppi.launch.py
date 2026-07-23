@@ -29,7 +29,7 @@ from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PKG_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 DEFAULT_PARAMS = os.path.join(PKG_DIR, 'config', 'nav2_params.yaml')
 BRIDGE_PY = os.path.join(PKG_DIR, 'obstacle_avoidance', 'cmd_vel_to_mavros.py')
 

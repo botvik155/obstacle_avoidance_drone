@@ -18,7 +18,7 @@ from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PKG_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 DEFAULT_PARAMS = os.path.join(PKG_DIR, 'config', 'nav2_params.yaml')
 # Velocity out via pymavlink SET_POSITION_TARGET_LOCAL_NED (BODY_NED), NOT mavros.
 # cmd_vel_to_mavros.py is kept in the package but no longer launched.
@@ -40,6 +40,18 @@ def generate_launch_description():
     # MAVLink endpoint for the velocity sender. Keep it SEPARATE from mavros
     # (mavros is usually on 14550) — point SITL/MAVProxy/mavlink-router here.
     mavlink_conn = LaunchConfiguration('mavlink_conn')
+
+    # Source .py if present (dev / run-from-source), else installed executable (OBC).
+    if os.path.exists(SEND_NED_PY):
+        send_ned = ExecuteProcess(
+            cmd=['python3', SEND_NED_PY,
+                 '--ros-args', '-p', ['connection:=', mavlink_conn]],
+            output='screen')
+    else:
+        send_ned = Node(
+            package='obstacle_avoidance_hw', executable='cmdvel_to_send_ned',
+            name='cmdvel_to_send_ned', output='screen',
+            parameters=[{'connection': mavlink_conn}])
 
     return LaunchDescription([
         DeclareLaunchArgument('params_file', default_value=DEFAULT_PARAMS),
@@ -84,9 +96,5 @@ def generate_launch_description():
 
         # Nav2 body-frame /cmd_vel -> ArduPilot BODY_NED velocity via pymavlink
         # (SET_POSITION_TARGET_LOCAL_NED). Does NOT go through mavros.
-        ExecuteProcess(
-            cmd=['python3', SEND_NED_PY,
-                 '--ros-args', '-p', ['connection:=', mavlink_conn]],
-            output='screen',
-        ),
+        send_ned,
     ])

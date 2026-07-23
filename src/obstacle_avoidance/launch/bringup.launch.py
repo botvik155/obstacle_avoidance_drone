@@ -33,7 +33,7 @@ from launch_ros.actions import Node
 CLOCK_BRIDGE = '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'
 SCAN_BRIDGE = '/lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan'
 
-PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PKG_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 TF_PY = os.path.join(PKG_DIR, 'obstacle_avoidance', 'tf_publisher.py')
 
 
