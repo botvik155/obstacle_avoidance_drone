@@ -34,6 +34,7 @@ setup(
         'console_scripts': [
             'mavros_tf_bridge = obstacle_avoidance_hw.tf_publisher:main',
             'cmd_vel_to_mavros = obstacle_avoidance_hw.cmd_vel_to_mavros:main',
+            'cmdvel_to_send_ned = obstacle_avoidance_hw.cmdvel_to_send_ned:main',
             'goal_socket_bridge = obstacle_avoidance_hw.goal_socket_bridge:main',
         ],
     },

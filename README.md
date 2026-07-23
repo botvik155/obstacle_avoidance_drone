@@ -10,7 +10,16 @@ with two parallel setups:
 
 Nav2 runs mapless: `map→base_link` comes from `/mavros/local_position/pose`
 (flattened to 2D), both costmaps are rolling windows off `/lidar/scan`, and MPPI's
-`/cmd_vel` is bridged to `/mavros/setpoint_velocity` (ENU, altitude held).
+`/cmd_vel` is sent to ArduPilot as **BODY_NED velocity via pymavlink**
+(`SET_POSITION_TARGET_LOCAL_NED`, node `cmdvel_to_send_ned`) — **not** through mavros.
+
+> The velocity sender uses its **own** MAVLink endpoint (default
+> `udpin:0.0.0.0:14551`), separate from mavros (14550, used for pose/telemetry).
+> With SITL, MAVProxy already fans out to 14550 **and** 14551. For a real FCU, use
+> MAVProxy / mavlink-router to forward the link to a second UDP port. Override with
+> `mavlink_conn:=...` on `nav2_hw.launch.py`.
+> (`cmd_vel_to_mavros.py`, the old mavros `/setpoint_velocity` bridge, is kept in the
+> package but no longer launched.)
 
 ## Onboard computer (no Gazebo needed)
 

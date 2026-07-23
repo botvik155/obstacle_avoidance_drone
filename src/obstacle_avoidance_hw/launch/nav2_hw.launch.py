@@ -20,7 +20,9 @@ from launch_ros.actions import Node
 
 PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_PARAMS = os.path.join(PKG_DIR, 'config', 'nav2_params.yaml')
-BRIDGE_PY = os.path.join(PKG_DIR, 'obstacle_avoidance_hw', 'cmd_vel_to_mavros.py')
+# Velocity out via pymavlink SET_POSITION_TARGET_LOCAL_NED (BODY_NED), NOT mavros.
+# cmd_vel_to_mavros.py is kept in the package but no longer launched.
+SEND_NED_PY = os.path.join(PKG_DIR, 'obstacle_avoidance_hw', 'cmdvel_to_send_ned.py')
 
 
 def generate_launch_description():
@@ -35,10 +37,15 @@ def generate_launch_description():
         'waypoint_follower',
     ]
 
+    # MAVLink endpoint for the velocity sender. Keep it SEPARATE from mavros
+    # (mavros is usually on 14550) — point SITL/MAVProxy/mavlink-router here.
+    mavlink_conn = LaunchConfiguration('mavlink_conn')
+
     return LaunchDescription([
         DeclareLaunchArgument('params_file', default_value=DEFAULT_PARAMS),
         # Real hardware -> wall time.
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('mavlink_conn', default_value='udpin:0.0.0.0:14551'),
 
         Node(
             package='nav2_controller', executable='controller_server',
@@ -75,9 +82,11 @@ def generate_launch_description():
             }],
         ),
 
-        # Nav2 body-frame /cmd_vel -> MAVROS ENU velocity setpoint.
+        # Nav2 body-frame /cmd_vel -> ArduPilot BODY_NED velocity via pymavlink
+        # (SET_POSITION_TARGET_LOCAL_NED). Does NOT go through mavros.
         ExecuteProcess(
-            cmd=['python3', BRIDGE_PY],
+            cmd=['python3', SEND_NED_PY,
+                 '--ros-args', '-p', ['connection:=', mavlink_conn]],
             output='screen',
         ),
     ])
