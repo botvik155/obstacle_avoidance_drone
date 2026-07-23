@@ -2,21 +2,24 @@
 """
 GCS goal sender (runs on the Ground Control Station).
 
-Standalone — needs ONLY Python 3 stdlib, no ROS. Sends a Nav2 goal to the OBC's
-goal_socket_bridge over UDP and prints the status replies it sends back.
+Standalone — needs ONLY Python 3 stdlib, no ROS. Sends a GEOGRAPHIC goal
+(lat/lon) to the OBC's goal_socket_bridge over UDP and prints the status replies.
+The OBC converts lat/lon to its local `map` frame before commanding Nav2.
 
 Examples:
-    # go to x=5, y=2 (metres, map frame), facing yaw=0, OBC at 192.168.1.50
-    ./gcs_goal_sender.py 5 2 0 --host 192.168.1.50
+    # go to lat=12.9716 lon=77.5946, facing yaw=0, OBC at 192.168.1.50
+    ./gcs_goal_sender.py 12.9716 77.5946 --host 192.168.1.50
 
-    # yaw defaults to 0
-    ./gcs_goal_sender.py 10 -3 --host 192.168.1.50
+    # with a heading (radians)
+    ./gcs_goal_sender.py 12.9716 77.5946 1.57 --host 192.168.1.50
 
     # cancel the current goal
     ./gcs_goal_sender.py --cancel --host 192.168.1.50
 
-x, y are metres in the map frame (relative to the EKF origin / home where the
-drone initialised); yaw is radians. Default port 9200 matches the bridge.
+    # (advanced) send a local x/y goal instead of lat/lon
+    ./gcs_goal_sender.py --xy 5 2 --host 192.168.1.50
+
+lat/lon are decimal degrees; yaw is radians. Default port 9200 matches the bridge.
 """
 
 import argparse
@@ -29,9 +32,9 @@ TERMINAL = {'reached', 'aborted', 'rejected', 'canceled'}
 
 def main():
     ap = argparse.ArgumentParser(
-        description='Send a Nav2 goal to the OBC over UDP.')
-    ap.add_argument('x', type=float, nargs='?', help='goal x (m, map frame)')
-    ap.add_argument('y', type=float, nargs='?', help='goal y (m, map frame)')
+        description='Send a lat/lon Nav2 goal to the OBC over UDP.')
+    ap.add_argument('lat', type=float, nargs='?', help='goal latitude (deg)')
+    ap.add_argument('lon', type=float, nargs='?', help='goal longitude (deg)')
     ap.add_argument('yaw', type=float, nargs='?', default=0.0,
                     help='goal yaw (rad, default 0)')
     ap.add_argument('--host', default='127.0.0.1',
@@ -41,16 +44,21 @@ def main():
     ap.add_argument('--frame', default='map', help="goal frame (default 'map')")
     ap.add_argument('--cancel', action='store_true',
                     help='cancel the current goal instead of sending one')
+    ap.add_argument('--xy', nargs=2, type=float, metavar=('X', 'Y'),
+                    help='send a LOCAL x/y goal (metres, map frame) instead of lat/lon')
     ap.add_argument('--timeout', type=float, default=120.0,
                     help='seconds to wait for status replies (default 120)')
     args = ap.parse_args()
 
     if args.cancel:
         msg = {'cmd': 'cancel'}
+    elif args.xy is not None:
+        msg = {'cmd': 'goal', 'x': args.xy[0], 'y': args.xy[1],
+               'yaw': args.yaw, 'frame': args.frame}
     else:
-        if args.x is None or args.y is None:
-            ap.error('provide x and y (or use --cancel)')
-        msg = {'cmd': 'goal', 'x': args.x, 'y': args.y,
+        if args.lat is None or args.lon is None:
+            ap.error('provide lat and lon (or --xy X Y, or --cancel)')
+        msg = {'cmd': 'goal', 'lat': args.lat, 'lon': args.lon,
                'yaw': args.yaw, 'frame': args.frame}
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -71,16 +71,20 @@ Give goals from a Ground Control Station over UDP instead of RViz. Two pieces:
   python3 src/obstacle_avoidance_hw/obstacle_avoidance_hw/goal_socket_bridge.py \
       --ros-args -p bind_port:=9200
   ```
+  The bridge converts the incoming **lat/lon** to the local `map` frame using the
+  drone's current global fix + local pose (needs a position source).
 - **GCS** — `gcs_goal_sender.py` (standalone, Python stdlib only, **no ROS needed**).
   Copy this one file to the GCS.
   ```bash
-  # x y yaw  (metres in map frame, yaw radians); --host = OBC IP
-  ./scripts/gcs_goal_sender.py 5 2 0 --host <OBC_IP> --port 9200
-  ./scripts/gcs_goal_sender.py --cancel --host <OBC_IP>      # cancel current goal
+  # lat lon [yaw]  (decimal degrees, yaw radians); --host = OBC IP
+  ./scripts/gcs_goal_sender.py 12.9716 77.5946 --host <OBC_IP> --port 9200
+  ./scripts/gcs_goal_sender.py --cancel --host <OBC_IP>       # cancel current goal
+  ./scripts/gcs_goal_sender.py --xy 5 2 --host <OBC_IP>       # (advanced) local x/y goal
   ```
 
-Protocol (JSON/UDP): `{"cmd":"goal","x":..,"y":..,"yaw":..,"frame":"map"}` or
-`{"cmd":"cancel"}`; replies `{"status":"accepted|reached|aborted|rejected|...","msg":..}`.
+Protocol (JSON/UDP): `{"cmd":"goal","lat":..,"lon":..,"yaw":..}` (or `"x"/"y"` for a
+local goal) or `{"cmd":"cancel"}`; replies
+`{"status":"converted|accepted|reached|aborted|rejected|...","msg":..}`.
 Open UDP `9200` on the OBC firewall if the GCS is on another machine.
 
 ## Full setup
