@@ -16,6 +16,8 @@ setup(
             glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'),
             glob('config/*')),
+        (os.path.join('share', package_name, 'scripts'),
+            glob('scripts/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -32,6 +34,7 @@ setup(
         'console_scripts': [
             'mavros_tf_bridge = obstacle_avoidance_hw.tf_publisher:main',
             'cmd_vel_to_mavros = obstacle_avoidance_hw.cmd_vel_to_mavros:main',
+            'goal_socket_bridge = obstacle_avoidance_hw.goal_socket_bridge:main',
         ],
     },
 )

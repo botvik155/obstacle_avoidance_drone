@@ -51,6 +51,29 @@ rviz2 -d src/obstacle_avoidance_hw/config/nav2_drone.rviz           # send goals
 > optical-flow/VIO/mocap) `/mavros/local_position/pose` never publishes, so
 > `map→base_link` is absent and nothing navigates. GPS is useless indoors.
 
+## Sending goals from a GCS (socket bridge)
+
+Give goals from a Ground Control Station over UDP instead of RViz. Two pieces:
+
+- **OBC** — `goal_socket_bridge` (run it **separately** from the Nav2 launch): receives
+  goals on a UDP port and forwards them to Nav2's `navigate_to_pose` action, replying
+  with status (accepted / reached / aborted).
+  ```bash
+  python3 src/obstacle_avoidance_hw/obstacle_avoidance_hw/goal_socket_bridge.py \
+      --ros-args -p bind_port:=9200
+  ```
+- **GCS** — `gcs_goal_sender.py` (standalone, Python stdlib only, **no ROS needed**).
+  Copy this one file to the GCS.
+  ```bash
+  # x y yaw  (metres in map frame, yaw radians); --host = OBC IP
+  ./scripts/gcs_goal_sender.py 5 2 0 --host <OBC_IP> --port 9200
+  ./scripts/gcs_goal_sender.py --cancel --host <OBC_IP>      # cancel current goal
+  ```
+
+Protocol (JSON/UDP): `{"cmd":"goal","x":..,"y":..,"yaw":..,"frame":"map"}` or
+`{"cmd":"cancel"}`; replies `{"status":"accepted|reached|aborted|rejected|...","msg":..}`.
+Open UDP `9200` on the OBC firewall if the GCS is on another machine.
+
 ## Full setup
 See [`INSTALL.md`](INSTALL.md) for the complete from-scratch install (both paths),
 with exact download/build commands and a known-good version table.
